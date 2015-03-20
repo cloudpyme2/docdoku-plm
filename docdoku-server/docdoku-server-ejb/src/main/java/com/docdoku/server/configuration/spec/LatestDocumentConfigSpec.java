@@ -18,45 +18,40 @@
  * along with DocDokuPLM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.docdoku.server.rest.collections;
 
-import com.docdoku.core.configuration.PSFilter;
-import com.docdoku.core.product.PartLink;
+package com.docdoku.server.configuration.spec;
 
-import java.util.List;
+import com.docdoku.core.common.User;
+import com.docdoku.core.configuration.DocumentConfigSpec;
+import com.docdoku.core.document.DocumentIteration;
+import com.docdoku.core.document.DocumentRevision;
 
 /**
+ * @author Morgan Guimard
  *
- * @author Florent Garin
  */
 
-public class InstanceCollection {
-    
-    private PartLink rootUsageLink;
-    private List<PartLink> usageLinkPaths;
-    private PSFilter filter;
-    
-    public InstanceCollection(){
-        
-    }
-    
-    public InstanceCollection(PartLink rootUsageLink, List<PartLink> usageLinkPaths, PSFilter filter){
-        this.rootUsageLink=rootUsageLink;
-        this.usageLinkPaths=usageLinkPaths;
-        this.filter=filter;
+public class LatestDocumentConfigSpec extends DocumentConfigSpec {
+
+    private User user;
+    public LatestDocumentConfigSpec() {
     }
 
-    public PSFilter getFilter() {
-        return filter;
+    public LatestDocumentConfigSpec(User user) {
+        this.user = user;
     }
 
-    public PartLink getRootUsageLink() {
-        return rootUsageLink;
+    @Override
+    public DocumentIteration filter(DocumentRevision documentRevision) {
+        return documentRevision.getLastIteration();
     }
 
-    public List<PartLink> getUsageLinkPaths() {
-        return usageLinkPaths;
+    public User getUser() {
+        return user;
     }
-    
-    
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
 }

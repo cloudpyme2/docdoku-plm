@@ -130,6 +130,12 @@ public class PartUsageLink implements Serializable, Cloneable, PartLink {
         return referenceDescription;
     }
 
+    @Override
+    public Character getCode() {
+        return 'u';
+    }
+
+    @Override
     public List<CADInstance> getCadInstances() {
         return cadInstances;
     }

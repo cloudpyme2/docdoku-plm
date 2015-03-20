@@ -8,7 +8,31 @@ define([
     var expandedViews = [];
     var ComponentViews = {};
 
+    var nodeTemplate = _.template(
+        '<%if(!isLock && !isForbidden) {%>' +
+            '<%if(isNode) {%>' +
+                '<div class="hitarea expandable-hitarea"></div>' +
+            '<%}%>' +
+            '<input type="checkbox" class="available" <%if (checkedAtInit) {%>checked="checked"<%}%>>' +
+        '<%} else {%>' +
+            '<input type="checkbox" disabled <%if (checkedAtInit) {%>checked="checked"<%}%>>' +
+        '<%}%>' +
+            '<a><label class="checkbox <%if(isNode) {%>isNode<%}%>"><%= name %> <%= number %>-<%= version %>-<%= iteration %> (<%= amount %><%if (unit) {%> <%= unit %> <%}%>)</label></a>' +
+        '<%if(isForbidden) {%> ' +
+            '<i class="fa fa-ban"></i>' +
+        '<%} else if(isCheckoutByAnotherUser && isLastIteration) {%> ' +
+            '<i class="fa openModal fa-lock"></i>' +
+        '<%} else if(isCheckoutByConnectedUser && isLastIteration) {%> ' +
+            '<i class="fa openModal fa-pencil"></i> ' +
+        '<%} else if(isReleased){%> ' +
+            '<i class="fa openModal fa-check"></i>' +
+        '<%} else{%> ' +
+            '<i class="fa openModal fa-eye"></i>' +
+        '<%}%>'
+    );
+
     ComponentViews.Components = Backbone.View.extend({
+
         tagName: 'ul',
 
         initialize: function () {
@@ -62,26 +86,6 @@ define([
 
         tagName: 'li',
 
-        template: _.template('<%if(!isLock && !isForbidden) {%>' +
-            '<input type="checkbox" class="available" <%if (checkedAtInit) {%>checked="checked"<%}%>>' +
-            '<%} else {%>' +
-            '<input type="checkbox" disabled <%if (checkedAtInit) {%>checked="checked"<%}%>>' +
-            '<%}%>' +
-            '<a><label class="checkbox"><%= number %> (<%= amount %> <%= unit %>)</label></a>' +
-            '<%if(isForbidden) {%> ' +
-
-            '<i class="fa fa-ban"></i>' +
-            '<%} else if(isCheckoutByAnotherUser) {%> ' +
-            '<i class="fa openModal fa-lock"></i>' +
-            '<%} else if(isCheckoutByConnectedUser) {%> ' +
-            '<i class="fa openModal fa-pencil"></i>' +
-            '<%} else if(isReleased){%> ' +
-            '<i class="fa openModal fa-check"></i>' +
-            '<%} else{%> ' +
-            '<i class="fa openModal fa-eye"></i>' +
-            '<%}%>'
-        ),
-
         events: {
             'click a': 'onComponentSelected',
             'change input:first': 'onChangeCheckbox',
@@ -97,11 +101,8 @@ define([
         },
 
         onAllResultPathAdded: function () {
-            if (this.options.resultPathCollection.contains(this.model.attributes.partUsageLinkId)) {
-                this.$el.addClass('resultPath');
-            } else {
-                this.$el.removeClass('resultPath');
-            }
+            var isInResultPaths = this.options.resultPathCollection.contains(this.model.attributes.partUsageLinkId);
+            this.$el.toggleClass('resultPath',isInResultPaths);
         },
 
         onChangeCheckbox: function (event) {
@@ -114,9 +115,18 @@ define([
         },
 
         render: function () {
+
+            var isLast = this.model.isLastIteration( this.model.getIteration());
+            console.log(isLast)
+
             var data = {
+                isNode:false,
                 number: this.model.attributes.number,
+                name: this.model.attributes.name,
                 amount: this.model.getAmount(),
+                version: this.model.getVersion(),
+                iteration: this.model.getIteration(),
+                isLastIteration: this.model.isLastIteration( this.model.getIteration()),
                 unit: this.model.getUnit(),
                 checkedAtInit: this.options.checkedAtInit,
                 isForbidden: this.model.isForbidden(),
@@ -126,7 +136,7 @@ define([
                 isLock: this.isLock
             };
 
-            this.$el.html(this.template(data));
+            this.$el.html(nodeTemplate(data));
 
             this.input = this.$('>input');
 
@@ -166,27 +176,6 @@ define([
 
         className: 'expandable',
 
-        template: _.template('<%if(!isLock && !isForbidden) {%>' +
-            '<div class="hitarea expandable-hitarea"></div>' +
-            '<input type="checkbox" class="available" <%if (checkedAtInit) {%>checked="checked"<%}%>>' +
-            '<%} else {%>' +
-            '<input type="checkbox" disabled <%if (checkedAtInit) {%>checked="checked"<%}%>>' +
-            '<%}%>' +
-            '<a><label class="checkbox isNode"><%= number %> (<%= amount %>)</label></a>' +
-            '<%if(isForbidden) {%> ' +
-            '<i class="fa fa-ban"></i>' +
-            '<%} else if(isCheckoutByAnotherUser) {%> ' +
-            '<i class="fa openModal fa-lock"></i>' +
-            '<%} else if(isCheckoutByConnectedUser) {%> ' +
-
-            '<i class="fa openModal fa-pencil"></i> ' +
-            '<%} else if(isReleased){%> ' +
-            '<i class="fa openModal fa-check"></i>' +
-            '<%} else{%> ' +
-            '<i class="fa openModal fa-eye"></i>' +
-            '<%}%>'
-        ),
-
         events: {
             'click a:first': 'onComponentSelected',
             'click .openModal:first': 'onEditPart',
@@ -198,17 +187,14 @@ define([
             this.isExpanded = false;
             _.bindAll(this, ['onChangeCheckbox']);
             this.listenTo(this.options.resultPathCollection, 'reset', this.onAllResultPathAdded);
-            this.$el.attr('id', 'path_' + String(this.model.attributes.path));
+            this.$el.attr('id', 'path_' + String(this.model.attributes.path || '-1'));
             this.isForbidden = this.model.isForbidden();
             this.isLock = this.model.isCheckout() && this.model.isLastIteration(this.model.get('iteration')) && !this.model.isCheckoutByConnectedUser();
         },
 
         onAllResultPathAdded: function () {
-            if (this.options.resultPathCollection.contains(this.model.attributes.partUsageLinkId)) {
-                this.$el.addClass('resultPath');
-            } else {
-                this.$el.removeClass('resultPath');
-            }
+            var isInResultPaths = this.options.resultPathCollection.contains(this.model.attributes.partUsageLinkId);
+            this.$el.toggleClass('resultPath',isInResultPaths);
         },
 
         onChangeCheckbox: function (event) {
@@ -225,7 +211,12 @@ define([
         render: function () {
 
             var data = {
+                isNode:true,
                 number: this.model.attributes.number,
+                name: this.model.attributes.name,
+                version: this.model.getVersion(),
+                iteration: this.model.getIteration(),
+                isLastIteration: this.model.isLastIteration( this.model.getIteration()),
                 amount: this.model.getAmount(),
                 unit: this.model.getUnit(),
                 checkedAtInit: this.options.checkedAtInit,
@@ -236,7 +227,7 @@ define([
                 isLock: this.isLock
             };
 
-            this.$el.html(this.template(data));
+            this.$el.html(nodeTemplate(data));
 
             this.input = this.$('>input');
 

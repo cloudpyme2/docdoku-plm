@@ -20,7 +20,7 @@
 package com.docdoku.server.rest.writer;
 
 import com.docdoku.core.configuration.PSFilter;
-import com.docdoku.core.product.PartUsageLink;
+import com.docdoku.core.product.PartLink;
 import com.docdoku.server.rest.collections.InstanceCollection;
 import com.docdoku.server.rest.util.InstanceBodyWriterTools;
 
@@ -64,8 +64,8 @@ public class InstanceMessageBodyWriter implements MessageBodyWriter<InstanceColl
         jg.writeStartArray();
 
         PSFilter filter = object.getFilter();
-        PartUsageLink rootUsageLink = object.getRootUsageLink();
-        List<Integer> usageLinkPaths = object.getUsageLinkPaths();
+        PartLink rootUsageLink = object.getRootUsageLink();
+        List<PartLink> usageLinkPaths = object.getUsageLinkPaths();
 
         Matrix4d gM=new Matrix4d();
         gM.setIdentity();

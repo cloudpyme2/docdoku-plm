@@ -8,7 +8,7 @@
             <li class="part-link">
                 <label class="radio">
                     <input type="radio" name="path-selector-{{model.getPartUsageLinkPath}}" value="{{id}}"/>
-                    {{component.number}}
+                    {{component.name}} {{component.number}}
                 </label>
                 <span class="baseline-choice-details">{{referenceDescription}} {{comment}} - {{amount}} {{#unit}}{{.}}{{/unit}} {{^unit}}{{i18n.UNIT}}(s){{/unit}} </span>
             </li>
@@ -17,7 +17,7 @@
                     {{#substitute}}
                     <label class="radio">
                     <input type="radio" name="path-selector-{{model.getPartUsageLinkPath}}" value="{{id}}"/>
-                    {{number}}
+                        {{name}} {{number}}
                     </label>
                     {{/substitute}}
                     <span class="baseline-choice-details">{{referenceDescription}} {{comment}} - {{amount}} {{#unit}}{{.}}{{/unit}} {{^unit}}{{i18n.UNIT}}(s){{/unit}} </span>

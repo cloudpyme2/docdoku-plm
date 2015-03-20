@@ -23,10 +23,7 @@ package com.docdoku.server.rest.util;
 import com.docdoku.core.configuration.PSFilter;
 import com.docdoku.core.exceptions.*;
 import com.docdoku.core.meta.InstanceAttribute;
-import com.docdoku.core.product.CADInstance;
-import com.docdoku.core.product.Geometry;
-import com.docdoku.core.product.PartIteration;
-import com.docdoku.core.product.PartUsageLink;
+import com.docdoku.core.product.*;
 import com.docdoku.core.services.IProductManagerLocal;
 import com.docdoku.server.rest.dto.InstanceAttributeDTO;
 import org.apache.commons.lang.StringUtils;
@@ -91,9 +88,9 @@ public class InstanceBodyWriterTools {
         return gM;
     }
 
-    public static void generateInstanceStreamWithGlobalMatrix(PartUsageLink pUsageLink, Matrix4d matrix, List<Integer> filteredPath, PSFilter filter, List<Integer> instanceIds, JsonGenerator jg) {
+    public static void generateInstanceStreamWithGlobalMatrix(PartLink pUsageLink, Matrix4d matrix, List<PartLink> filteredPath, PSFilter filter, List<Integer> instanceIds, JsonGenerator jg) {
         try {
-            PartUsageLink usageLink = productService.getPartUsageLinkFiltered(pUsageLink, filter, 0);
+            PartLink usageLink = productService.getPartLinkFiltered(pUsageLink, filter, 0);
             PartIteration partI = usageLink.getComponent().getLastRevision().getLastIteration();
 
             for (CADInstance instance : usageLink.getCadInstances()) {
@@ -119,13 +116,13 @@ public class InstanceBodyWriterTools {
         }
     }
 
-    private static void writeNode(PartIteration partI, PSFilter filter, List<Integer> filteredPath, Matrix4d combinedMatrix, List<Integer> copyInstanceIds, JsonGenerator jg){
+    private static void writeNode(PartIteration partI, PSFilter filter, List<PartLink> filteredPath, Matrix4d combinedMatrix, List<Integer> copyInstanceIds, JsonGenerator jg){
         for (PartUsageLink component : partI.getComponents()) {
             if (filteredPath.isEmpty()) {
                 generateInstanceStreamWithGlobalMatrix(component, combinedMatrix, filteredPath, filter, copyInstanceIds, jg);
 
-            } else if (component.getId() == filteredPath.get(0)) {
-                List<Integer> copyWithoutCurrentId = new ArrayList<>(filteredPath);
+            } else if (component.getId() == filteredPath.get(0).getId()) {
+                List<PartLink> copyWithoutCurrentId = new ArrayList<>(filteredPath);
                 copyWithoutCurrentId.remove(0);
                 generateInstanceStreamWithGlobalMatrix(component, combinedMatrix, copyWithoutCurrentId, filter, copyInstanceIds, jg);
             }

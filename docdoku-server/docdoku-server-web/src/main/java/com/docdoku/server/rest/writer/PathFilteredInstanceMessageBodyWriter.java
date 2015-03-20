@@ -20,7 +20,7 @@
 package com.docdoku.server.rest.writer;
 
 import com.docdoku.core.configuration.PSFilter;
-import com.docdoku.core.product.PartUsageLink;
+import com.docdoku.core.product.PartLink;
 import com.docdoku.server.rest.collections.InstanceCollection;
 import com.docdoku.server.rest.collections.PathFilteredListInstanceCollection;
 import com.docdoku.server.rest.util.InstanceBodyWriterTools;
@@ -66,11 +66,11 @@ public class PathFilteredInstanceMessageBodyWriter implements MessageBodyWriter<
 
         PSFilter cs = object.getFilter();
         for(InstanceCollection instanceCollection : object.getInstanceCollections()){
-            PartUsageLink rootUsageLink = instanceCollection.getRootUsageLink();
-            List<Integer> usageLinkPaths = instanceCollection.getUsageLinkPaths();
+            PartLink rootUsageLink = instanceCollection.getRootUsageLink();
+            List<PartLink> usageLinkPaths = instanceCollection.getUsageLinkPaths();
             Matrix4d gM=new Matrix4d();
             gM.setIdentity();
-            InstanceBodyWriterTools.generateInstanceStreamWithGlobalMatrix(rootUsageLink, gM, usageLinkPaths, cs, new ArrayList<Integer>(), jg);
+            InstanceBodyWriterTools.generateInstanceStreamWithGlobalMatrix(rootUsageLink, gM, usageLinkPaths, cs, new ArrayList<>(), jg);
         }
 
         jg.writeEnd();

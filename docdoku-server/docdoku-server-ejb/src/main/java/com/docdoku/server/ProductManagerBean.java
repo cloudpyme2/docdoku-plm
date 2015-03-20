@@ -41,9 +41,7 @@ import com.docdoku.core.util.NamingConvention;
 import com.docdoku.core.util.Tools;
 import com.docdoku.core.workflow.*;
 import com.docdoku.server.configuration.PSFilterVisitor;
-import com.docdoku.server.configuration.filter.LatestPSFilter;
-import com.docdoku.server.configuration.filter.ReleasedPSFilter;
-import com.docdoku.server.configuration.filter.WIPPSFilter;
+import com.docdoku.server.configuration.filter.*;
 import com.docdoku.server.configuration.spec.ProductInstanceConfigSpec;
 import com.docdoku.server.dao.*;
 import com.docdoku.server.esindexer.ESIndexer;
@@ -103,12 +101,53 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
 
     @RolesAllowed(UserGroupMapping.REGULAR_USER_ROLE_ID)
     @Override
-    public List<PartUsageLink[]> findPartUsages(ConfigurationItemKey pKey, PartMasterKey pPartMKey) throws WorkspaceNotFoundException, UserNotFoundException, UserNotActiveException {
+    public List<PartLink[]> findPartUsages(ConfigurationItemKey pKey, PSFilter filter, String search) throws WorkspaceNotFoundException, UserNotFoundException, UserNotActiveException, NotAllowedException, EntityConstraintException, PartMasterNotFoundException, ConfigurationItemNotFoundException {
+
         User user = userManager.checkWorkspaceReadAccess(pKey.getWorkspace());
 
-        PartUsageLinkDAO linkDAO = new PartUsageLinkDAO(new Locale(user.getLanguage()), em);
-        List<PartUsageLink[]> usagePaths = linkDAO.findPartUsagePaths(pPartMKey);
-        //TODO filter by configuration item
+        List<PartLink[]> usagePaths = new ArrayList<>();
+
+        ConfigurationItemDAO configurationItemDAO = new ConfigurationItemDAO(new Locale(user.getLanguage()), em);
+        ConfigurationItem ci = configurationItemDAO.loadConfigurationItem(pKey);
+
+        new PSFilterVisitor(em, user, filter, ci.getDesignItem(), null, -1) {
+            @Override
+            public void onIndeterminateVersion(PartMaster partMaster, List<PartIteration> partIterations) throws NotAllowedException {
+            }
+
+            @Override
+            public void onUnresolvedVersion(PartMaster partMaster) throws NotAllowedException {
+            }
+
+            @Override
+            public void onIndeterminatePath(List<PartLink> pCurrentPath, List<PartIteration> pCurrentPathPartIterations) throws NotAllowedException {
+            }
+
+            @Override
+            public void onUnresolvedPath(List<PartLink> pCurrentPath, List<PartIteration> partIterations) throws NotAllowedException {
+            }
+
+            @Override
+            public void onBranchDiscovered(List<PartLink> pCurrentPath, List<PartIteration> copyPartIteration) {
+            }
+
+            @Override
+            public void onOptionalPath(List<PartLink> partLinks, List<PartIteration> partIterations) {
+            }
+
+            @Override
+            public void onPathWalk(List<PartLink> path, List<PartMaster> parts) {
+                PartMaster pm = parts.get(parts.size() - 1);
+                if(pm.getNumber().matches(search)){
+
+                    PartLink[] partLinks = path.toArray(new PartLink[path.size()]);
+
+                    usagePaths.add(partLinks);
+                }
+            }
+
+        };
+
         return usagePaths;
     }
 
@@ -401,7 +440,7 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
 
     @RolesAllowed(UserGroupMapping.REGULAR_USER_ROLE_ID)
     @Override
-    public PartRevision checkInPart(PartRevisionKey pPartRPK) throws PartRevisionNotFoundException, UserNotFoundException, WorkspaceNotFoundException, AccessRightException, NotAllowedException, ESServerException, UserNotActiveException, EntityConstraintException, PartMasterNotFoundException {
+    public PartRevision checkInPart(PartRevisionKey pPartRPK) throws PartRevisionNotFoundException, UserNotFoundException, WorkspaceNotFoundException, AccessRightException, NotAllowedException, ESServerException, EntityConstraintException, UserNotActiveException, PartMasterNotFoundException {
         User user = userManager.checkWorkspaceWriteAccess(pPartRPK.getPartMaster().getWorkspace());
         Locale locale = new Locale(user.getLanguage());
 
@@ -2110,29 +2149,31 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
         return user;
     }
 
-
-
-
     @RolesAllowed(UserGroupMapping.REGULAR_USER_ROLE_ID)
     @Override
-    public Component filterProductStructure(ConfigurationItemKey ciKey, PSFilter filter, String path, Integer pDepth) throws ConfigurationItemNotFoundException, WorkspaceNotFoundException, NotAllowedException, UserNotFoundException, UserNotActiveException, PartUsageLinkNotFoundException, AccessRightException, PartMasterNotFoundException, EntityConstraintException {
+    public Component filterProductStructure(ConfigurationItemKey ciKey, PSFilter filter, List<PartLink> path, Integer pDepth) throws ConfigurationItemNotFoundException, WorkspaceNotFoundException, NotAllowedException, UserNotFoundException, UserNotActiveException, PartUsageLinkNotFoundException, AccessRightException, PartMasterNotFoundException, EntityConstraintException {
 
         User user = userManager.checkWorkspaceReadAccess(ciKey.getWorkspace());
         Locale locale = new Locale(user.getLanguage());
 
-        // TODO : inject depth and path in visitor
-        //int depth = (pDepth == null) ? -1 : pDepth;
+        PartMaster root = null;
 
-        ConfigurationItemDAO configurationItemDAO = new ConfigurationItemDAO(locale, em);
-        ConfigurationItem ci = configurationItemDAO.loadConfigurationItem(ciKey);
+        if(path == null){
+            ConfigurationItem ci = new ConfigurationItemDAO(locale, em).loadConfigurationItem(ciKey);
+            root = ci.getDesignItem();
+        }
 
-        PSFilterVisitor visitor = new PSFilterVisitor(em, user, filter, ci.getDesignItem(), pDepth) {
+        PSFilterVisitor visitor = new PSFilterVisitor(em, user, filter, root , path, pDepth) {
             @Override
             public void onIndeterminateVersion(PartMaster partMaster, List<PartIteration> partIterations)  throws NotAllowedException{
             }
+            @Override
+            public void onIndeterminatePath(List<PartLink> pCurrentPath, List<PartIteration> pCurrentPathPartIterations) {
+            }
 
             @Override
-            public void onIndeterminatePath(List<PartLink> pCurrentPath, List<PartIteration> pCurrentPathPartIterations, PartUsageLink usageLink) {
+            public void onUnresolvedPath(List<PartLink> pCurrentPath, List<PartIteration> partIterations) throws NotAllowedException {
+
             }
 
             @Override
@@ -2140,7 +2181,13 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
             }
 
             @Override
-            public void onUnresolvedPath(List<PartLink> pCurrentPath) {
+            public void onOptionalPath(List<PartLink> partLinks, List<PartIteration> partIterations) {
+
+            }
+
+            @Override
+            public void onPathWalk(List<PartLink> path, List<PartMaster> parts) {
+
             }
 
             @Override
@@ -2154,19 +2201,82 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
 
     @RolesAllowed(UserGroupMapping.REGULAR_USER_ROLE_ID)
     @Override
-    public PartUsageLink getPartUsageLinkFiltered(PartUsageLink rootUsageLink, PSFilter filter, Integer pDepth) throws ConfigurationItemNotFoundException, WorkspaceNotFoundException, NotAllowedException, UserNotFoundException, UserNotActiveException, PartUsageLinkNotFoundException, AccessRightException {
+    public PartLink getPartLinkFiltered(PartLink rootUsageLink, PSFilter filter, Integer pDepth) throws ConfigurationItemNotFoundException, WorkspaceNotFoundException, NotAllowedException, UserNotFoundException, UserNotActiveException, PartUsageLinkNotFoundException, AccessRightException {
         User user = userManager.checkWorkspaceReadAccess(rootUsageLink.getComponent().getWorkspaceId());
-        int depth = (pDepth == null) ? -1 : pDepth;
         PartMaster component = rootUsageLink.getComponent();
 
+      /*
+      *  User user = userManager.checkWorkspaceReadAccess(pKey.getWorkspace());
+        Locale userLocal = new Locale(user.getLanguage());
+        int depth = (pDepth == null) ? -1 : pDepth;
+        PartUsageLink rootUsageLink;
 
-//        if(configSpec != null){
-//            filterPartConfigSpec(configSpec, component, depth, user);
-//        }else{
-//            filterPartConfigSpec(new LatestConfigSpec(user), component, depth, user);
-//        }
+        if (partUsageLink == null || partUsageLink == -1) {                                                             // If no partUsageLink specified, we get the rootPartUsageLink
+            rootUsageLink = getRootPartUsageLink(pKey);
+        } else {
+            rootUsageLink = new PartUsageLinkDAO(userLocal, em).loadPartUsageLink(partUsageLink);
+        }
 
+        PartMaster component = rootUsageLink.getComponent();
+
+        if(component.getWorkspaceId().equals(pKey.getWorkspace())){
+            if(configSpec != null){
+                filterPartConfigSpec(configSpec, component, depth, user);
+            }else{
+                filterPartConfigSpec(new LatestConfigSpec(user), component, depth, user);
+            }
+
+            return rootUsageLink;
+        }else{
+            throw new AccessRightException(userLocal, user);
+        }*/
         return rootUsageLink;
+    }
+
+    @RolesAllowed(UserGroupMapping.REGULAR_USER_ROLE_ID)
+    @Override
+    public List<PartLink> decodePath(String workspaceId, String path) throws UserNotFoundException, UserNotActiveException, WorkspaceNotFoundException, PartUsageLinkNotFoundException {
+
+        User user = userManager.checkWorkspaceReadAccess(workspaceId);
+
+        if(path == null){
+            throw new IllegalArgumentException("Path cannot be null");
+        }
+
+        if(path.equals("-1")){
+            return null;
+        }
+
+        // Remove the -1- in front of string
+        String[] split = path.substring(3).split("-");
+
+        List<PartLink> links = new ArrayList<>();
+
+        for(String codeAndId:split){
+
+            int id = Integer.valueOf(codeAndId.substring(1));
+
+            if(codeAndId.startsWith("u")){
+                links.add(getPartUsageLink(user,id));
+            }else if(codeAndId.startsWith("s")) {
+                links.add(getPartSubstituteLink(user,id));
+            }else{
+                throw new IllegalArgumentException("Missing code");
+            }
+
+        }
+
+        return links;
+    }
+
+    private PartUsageLink getPartUsageLink(User user, int id) throws PartUsageLinkNotFoundException {
+        PartUsageLinkDAO partUsageLinkDAO = new PartUsageLinkDAO(new Locale(user.getLanguage()),em);
+        return partUsageLinkDAO.loadPartUsageLink(id);
+    }
+
+    private PartSubstituteLink getPartSubstituteLink(User user, int id) throws PartUsageLinkNotFoundException {
+        PartUsageLinkDAO partUsageLinkDAO = new PartUsageLinkDAO(new Locale(user.getLanguage()),em);
+        return partUsageLinkDAO.loadPartSubstituteLink(id);
     }
 
     @RolesAllowed(UserGroupMapping.REGULAR_USER_ROLE_ID)
@@ -2197,12 +2307,17 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
         User user = userManager.checkWorkspaceReadAccess(workspace.getId());
 
         // Navigate the WIP
-        new PSFilterVisitor(em, user, new WIPPSFilter(user), partMaster, -1) {
+        new PSFilterVisitor(em, user, new UpdatePartIterationPSFilter(user,partIteration), partMaster, null, -1) {
             @Override
             public void onIndeterminateVersion(PartMaster partMaster, List<PartIteration> partIterations)  throws NotAllowedException{
             }
             @Override
-            public void onIndeterminatePath(List<PartLink> pCurrentPath, List<PartIteration> pCurrentPathPartIterations, PartUsageLink usageLink) {
+            public void onIndeterminatePath(List<PartLink> pCurrentPath, List<PartIteration> pCurrentPathPartIterations) {
+            }
+
+            @Override
+            public void onUnresolvedPath(List<PartLink> pCurrentPath, List<PartIteration> partIterations) throws NotAllowedException {
+
             }
 
             @Override
@@ -2210,7 +2325,12 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
             }
 
             @Override
-            public void onUnresolvedPath(List<PartLink> pCurrentPath) {
+            public void onOptionalPath(List<PartLink> partLinks, List<PartIteration> partIterations) {
+
+            }
+
+            @Override
+            public void onPathWalk(List<PartLink> path, List<PartMaster> parts) {
 
             }
 
@@ -2245,6 +2365,9 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
                 break;
             case "released":
                 filter = new ReleasedPSFilter(user);
+                break;
+            case "latest-released":
+                filter = new LatestReleasedPSFilter(user);
                 break;
             default:
                 if(filterType.startsWith("pi-")){

@@ -1474,6 +1474,21 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
         }
     }
 
+    private void removeAttachedFiles(PartIteration partIteration)
+            throws UserNotFoundException, UserNotActiveException, WorkspaceNotFoundException, PartIterationNotFoundException {
+        // Delete attached files
+
+        for (BinaryResource file : partIteration.getAttachedFiles()) {
+            try {
+                dataManager.deleteData(file);
+            } catch (StorageException e) {
+                LOGGER.log(Level.INFO, null, e);
+            }
+
+            esIndexer.delete(partIteration);
+        }
+    }
+
     @Override
     public void removeFileInPartIteration(PartIterationKey pPartIPK, String pSubType, String pName)
             throws UserNotFoundException, UserNotActiveException, WorkspaceNotFoundException, PartIterationNotFoundException, FileNotFoundException {
@@ -1882,13 +1897,14 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
             throw new EntityConstraintException(locale,"EntityConstraintException5");
         }
 
-        // delete CAD files attached with this partMaster
+        // delete CAD and other files attached with this partMaster
         // and notified remove part observers
         for (PartRevision partRevision : partMaster.getPartRevisions()) {
             partRevisionEvent.select(new AnnotationLiteral<Removed>(){}).fire(new PartRevisionChangeEvent(partRevision));
             for (PartIteration partIteration : partRevision.getPartIterations()) {
                 try {
                     removeCADFile(partIteration);
+                    removeAttachedFiles(partIteration);
                 } catch (PartIterationNotFoundException e) {
                     LOGGER.log(Level.INFO, null, e);
                 }
@@ -1948,10 +1964,11 @@ public class ProductManagerBean implements IProductManagerWS, IProductManagerLoc
             // Remove ElasticSearch Index for this PartIteration
         }
 
-        // delete CAD files attached with this partMaster
+        // delete CAD and other files attached with this partMaster
         for (PartIteration partIteration : partR.getPartIterations()) {
             try {
                 removeCADFile(partIteration);
+                removeAttachedFiles(partIteration);
             } catch (PartIterationNotFoundException e) {
                 LOGGER.log(Level.INFO, null, e);
             }

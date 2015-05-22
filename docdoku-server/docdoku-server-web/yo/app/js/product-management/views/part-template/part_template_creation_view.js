@@ -36,7 +36,8 @@ define([
             this.attributesView = this.addSubView(
                 new TemplateNewAttributesView({
                     el: '#attributes-list',
-                    editMode: true
+                    editMode: true,
+                    attributesLocked: this.attributesLocked
                 })
             ).render();
 
@@ -95,7 +96,6 @@ define([
                     error: this.onError
                 });
             }
-            console.log("model: ",this.model);
 
             e.preventDefault();
             e.stopPropagation();

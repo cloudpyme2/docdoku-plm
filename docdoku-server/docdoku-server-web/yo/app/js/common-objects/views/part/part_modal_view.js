@@ -76,7 +76,6 @@ define([
 
         activateNotificationsTab: function(){
             this.activateTab(this.$tabs.length - 1);
-            console.log(this.$tabs);
         },
 
         render: function () {

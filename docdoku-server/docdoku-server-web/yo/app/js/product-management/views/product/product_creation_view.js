@@ -24,12 +24,17 @@ define([
             this.bindDomElements();
             this.bindTypeahead();
             this.$('input[required]').customValidity(App.config.i18n.REQUIRED_FIELD);
+            this.disableButton(true);
             return this;
         },
 
         setRootPartNumber:function(partNumber){
             this.$inputPartNumber.val(partNumber);
             return this;
+        },
+
+        disableButton: function(disable) {
+            this.$formSubmit.disabled = disable;
         },
 
         bindDomElements: function () {
@@ -40,6 +45,7 @@ define([
             this.$inputPartName = this.$('#inputPartName');
             this.$inputProductId = this.$('#inputProductId');
             this.$inputDescription = this.$('#inputDescription');
+            this.$formSubmit = this.$('.modal-footer .btn-primary')[0];
         },
 
         bindTypeahead: function () {
@@ -61,6 +67,7 @@ define([
                 updater: function(item) {
                     that.$inputPartName.val(map[item].partName);
                     that.$inputPartNumber.val(map[item].partNumber);
+                    that.disableButton(false);
                     return item;
                 }
             });
